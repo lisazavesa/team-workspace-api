@@ -5,46 +5,46 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
   passwordHash String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? 
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
-  teamMembers TeamMember[]
-  assignedTasks Task[]        @relation("TaskAssignee")
+  teamMembers   TeamMember[]
+  assignedTasks Task[]       @relation("TaskAssignee")
 }
 
 model Team {
-  id    Int     @id @default(autoincrement())
-  name  String  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? 
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  members     TeamMember[]
-  projects    Project[]
+  members  TeamMember[]
+  projects Project[]
 }
 
 model TeamMember {
-  id    Int     @id @default(autoincrement())
-  userId Int
-  teamId Int
-  role Role @default(MEMBER)
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  teamId   Int
+  role     Role     @default(MEMBER)
   joinedAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  team      Team     @relation(fields: [teamId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
 
   @@unique([userId, teamId])
   @@index([userId])
@@ -57,32 +57,32 @@ enum Role {
 }
 
 model Project {
-  id    Int     @id @default(autoincrement())
-  name  String  
-  teamId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  name      String
+  teamId    Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  team      Team      @relation(fields: [teamId], references: [id])
-  tasks     Task[]
+  team  Team   @relation(fields: [teamId], references: [id])
+  tasks Task[]
 
   @@index([teamId])
 }
 
 model Task {
-  id          Int         @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   title       String
   description String?
   projectId   Int
   assigneeId  Int?
-  status      TaskStatus  @default(TODO)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  status      TaskStatus @default(TODO)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
 
-  project     Project     @relation(fields: [projectId], references: [id])
-  assignee    User?       @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project  Project @relation(fields: [projectId], references: [id])
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
   @@index([projectId])
   @@index([assigneeId])
