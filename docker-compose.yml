@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: team_workspace_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: team_workspace
+    ports:
+      - "5433:5432"
+    volumes:
+      - team_workspace_data:/var/lib/postgresql/data
+
+volumes:
+  team_workspace_data:
