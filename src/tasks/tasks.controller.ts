@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, ParseEnumPipe, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseEnumPipe, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { TasksService } from './tasks.service'
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskStatus } from '@prisma/client';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 
 @Controller('tasks')
 export class TasksController {
@@ -36,6 +38,26 @@ export class TasksController {
     @Delete(':id')
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.tasksServise.remove(id)
+    }
+
+    //file
+
+    @Post(':id/files')
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: './uploads',
+                filename: (req, file, cb) => {
+                    const uniqueName = Date.now() + '-' + file.originalname
+                    cb(null, uniqueName)
+                },
+            }),
+        }),
+    )
+    uploadFile(
+        @Param('id', ParseIntPipe) id: number, 
+        @UploadedFile() file: Express.Multer.File) {
+        return this.tasksServise.uploadFile(id, file)
     }
 
 

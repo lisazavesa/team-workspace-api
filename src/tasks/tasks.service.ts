@@ -107,4 +107,22 @@ export class TasksService {
             }
         })
     }
+
+    async uploadFile(taskId: number, file: Express.Multer.File) {
+        const task = await this.prisma.task.findUnique({
+            where: { id: taskId },
+        })
+
+        if (!task) {
+            throw new NotFoundException('Task not found')
+        } 
+
+        return this.prisma.file.create({
+            data: {
+                fileName: file.originalname,
+                path: file.filename,
+                taskId: taskId
+            }
+        })
+    }
 }

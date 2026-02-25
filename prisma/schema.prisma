@@ -84,6 +84,8 @@ model Task {
   project  Project @relation(fields: [projectId], references: [id])
   assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
+  files File[]
+
   @@index([projectId])
   @@index([assigneeId])
   @@index([projectId, status])
@@ -93,4 +95,14 @@ enum TaskStatus {
   TODO
   IN_PROGRESS
   DONE
+}
+
+model File {
+  id           Int      @id @default(autoincrement())
+  fileName     String   
+  taskId       Int
+  path         String
+  createdAt    DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
 }

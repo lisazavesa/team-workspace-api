@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express'
 
-console.log(process.env.DATABASE_URL);
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
   await app.listen(process.env.PORT ?? 3000);
+  app.useStaticAssets('uploads', {
+    prefix: '/uploads/',
+  })
 }
 bootstrap();
