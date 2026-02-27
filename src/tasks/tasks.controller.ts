@@ -5,6 +5,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskStatus } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { GetTaskQueryDto } from './dto/task-query.dto';
 
 @Controller('tasks')
 export class TasksController {
@@ -17,13 +18,8 @@ export class TasksController {
 
 
     @Get()
-    findAll(
-        @Query('status', new ParseEnumPipe(TaskStatus))
-        status?: TaskStatus,
-        @Query('projectId', ParseIntPipe) projectId?: number,
-        @Query('assigneeId', ParseIntPipe) assigneeId?: number,
-    ) {
-        return this.tasksServise.findAll({ status, projectId, assigneeId })
+    findAll(@Query() query: GetTaskQueryDto)  {
+        return this.tasksServise.findAll(query)
     }
 
 

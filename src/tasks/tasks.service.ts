@@ -5,6 +5,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskStatus } from '@prisma/client';
 import { promises as fs } from 'fs';
 import * as path from 'path'
+import { GetTaskQueryDto } from './dto/task-query.dto';
 
 @Injectable()
 export class TasksService {
@@ -30,7 +31,7 @@ export class TasksService {
             })
 
             if (!user) {
-            throw new NotFoundException('Project not found')
+            throw new NotFoundException('User not found')
         }
         }
         return this.prisma.task.create({
@@ -39,10 +40,10 @@ export class TasksService {
                 description: dto.description,
                 status: dto.status,
                 project: {
-                    connect: { id: dto.projectId}
+                    connect: { id: dto.projectId }
                 },
                 assignee: dto.assigneeId
-                ? { connect: { id: dto.assigneeId} } : undefined
+                ? { connect: { id: dto.assigneeId } } : undefined
             },
 
             include: {
@@ -52,24 +53,43 @@ export class TasksService {
         })
     }
 
-    findAll(filters: {
-        status?: TaskStatus
-        projectId?: number
-        assigneeId?: number
-    }) {
-        return this.prisma.task.findMany({
-            where: {
-                deletedAt: null,
-                ...(filters.status && { status: filters.status }),
-                ...(filters.projectId && { projectId: filters.projectId }),
-                ...(filters.assigneeId && { assigneeId: filters.assigneeId }),
+    async findAll(query: GetTaskQueryDto) {
+        const page = query.page ?? 1
+        const limit = query.limit ?? 10
+
+        const safeLimit = Math.min(limit, 50)
+
+        const where = {
+            ...(query.status && { status: query.status }),
+            ...(query.projectId && { projectId: query.projectId }),
+            ...(query.assigneeId && { assigneeId: query.assigneeId }),
+        }
+
+        const total = await this.prisma.task.count({ where })
+
+        const skip = (page - 1) * safeLimit
+
+        const tasks = await this.prisma.task.findMany({
+            where,
+            skip,
+            take: safeLimit,
+            orderBy: {
+                createdAt: query.order ?? 'desc'
             },
-            
             include: {
                 project: true,
-                assignee: true,
+                assignee: true
             }
         })
+
+        return {
+            data: tasks,
+            meta: {
+                total,
+                page,
+                lastPage: Math.ceil(total/safeLimit)
+            }
+        }
     }
 
     async findOne(id: number) {
@@ -81,6 +101,7 @@ export class TasksService {
             include: {
                 project: true,
                 assignee: true,
+                files: true,
             }
         })
         if (!task) {
@@ -91,11 +112,12 @@ export class TasksService {
     }
 
     async update(id: number, dto: UpdateTaskDto) {
-        await this.findOne(id)
+        const task = await this.findOne(id)
 
         return this.prisma.task.update({
             where: { id },
-            data: dto
+            data: dto,
+            include: { files: true}
         })
     }
 

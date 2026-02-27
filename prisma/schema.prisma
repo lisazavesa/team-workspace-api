@@ -104,5 +104,5 @@ model File {
   path         String
   createdAt    DateTime @default(now())
 
-  task Task @relation(fields: [taskId], references: [id])
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
