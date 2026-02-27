@@ -56,9 +56,21 @@ export class TasksController {
     )
     uploadFile(
         @Param('id', ParseIntPipe) id: number, 
-        @UploadedFile() file: Express.Multer.File) {
+        @UploadedFile() file: Express.Multer.File
+    ) {
         return this.tasksServise.uploadFile(id, file)
     }
 
+    @Get(':taskId/files')
+    findAllFiles(@Param('taskId', ParseIntPipe) taskId: number) {
+        return this.tasksServise.findAllFiles(taskId)
+    }
 
+    @Delete(':taskId/files/:fileId')
+    deleteFile(
+        @Param('fileId', ParseIntPipe) fileId: number,
+        @Param('taskId', ParseIntPipe) taskId: number
+    ) {
+        return this.tasksServise.deleteFile(taskId, fileId)
+    }
 }

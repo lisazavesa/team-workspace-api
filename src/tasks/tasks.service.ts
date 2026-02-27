@@ -3,6 +3,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskStatus } from '@prisma/client';
+import { promises as fs } from 'fs';
+import * as path from 'path'
 
 @Injectable()
 export class TasksService {
@@ -123,6 +125,44 @@ export class TasksService {
                 path: file.filename,
                 taskId: taskId
             }
+        })
+    }
+
+    async findAllFiles(taskId: number) {
+        const task = await this.prisma.task.findUnique({
+            where: { id: taskId },
+            include: { files: true }
+        })
+
+        if (!task) {
+            throw new NotFoundException('Task not found')
+        }  
+
+        return task.files
+    }
+
+    async deleteFile(taskId: number, fileId: number) {
+        const file = await this.prisma.file.findFirst({
+            where: {
+                id: fileId,
+                taskId: taskId
+            }
+        })
+
+        if (!file) {
+            throw new NotFoundException('File not found')
+        } 
+
+        const filePath = path.join(process.cwd(), 'uploads', file.path)
+
+        try {
+            await fs.unlink(filePath)
+        } catch (error) {
+            console.error('Error deleting file from disk:', error)
+        }
+
+        return this.prisma.file.delete({
+            where: { id: fileId }
         })
     }
 }
