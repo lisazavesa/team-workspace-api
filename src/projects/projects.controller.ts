@@ -31,6 +31,11 @@ export class ProjectsController {
         return this.projectServise.findOne(id)
     }
 
+    @Get(':id/stats')
+    getStats(@Param('id', ParseIntPipe) id: number) {
+        return this.projectServise.getStats(id)
+    }
+
     @Get('/team/:teamId')
     findByTeam(@Param('teamId', ParseIntPipe) teamId: number) {
         return this.projectServise.findByTeam(teamId)
