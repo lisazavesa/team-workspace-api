@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Delete, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, Param, Query } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { ParseIntPipe } from '@nestjs/common'
+import { GetTeamsQueryDto } from './dto/teams-query.dto';
 
 @Controller('teams')
 export class TeamsController {
@@ -14,8 +15,8 @@ export class TeamsController {
     }
 
     @Get()
-    findAll() {
-        return this.teamsService.findAll();
+    findAll(@Query() query: GetTeamsQueryDto) {
+        return this.teamsService.findAll(query);
     }
 
     @Get(':id')
