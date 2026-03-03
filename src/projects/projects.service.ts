@@ -9,10 +9,16 @@ import { GetProjectQueryDto } from './dto/project-query.dto';
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { ProjectResponseDto } from './dto/project-response.dto';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class ProjectsService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(ProjectsService.name);
+    }
 
     private toResponseDto(project: Project) {
         return plainToInstance(ProjectResponseDto, project, {
@@ -21,9 +27,20 @@ export class ProjectsService {
         }
 
     async create(dto: CreateProjectDto) {
+        this.logger.info(
+            { teamId: dto.teamId },
+            'Creating project',
+        );
+
         const project = await this.prisma.project.create({
             data: dto
         })
+        
+        this.logger.info(
+            { teamId: dto.teamId },
+            'Project created',
+        );
+
         return this.toResponseDto(project);
     }
 
@@ -92,6 +109,8 @@ export class ProjectsService {
     //аналитический эндпоинт, возвращает числа, а не сущности/списки задач
 
     async getStats(id: number): Promise<ProjectStatsDto> {
+        this.logger.debug({ projectId: id }, 'Calculating project stats');
+
         await this.findOne(id);
 
         const tasks = await this.prisma.task.groupBy({
@@ -158,6 +177,8 @@ export class ProjectsService {
     }
 
     async update(id: number, dto: UpdateProjectDto) {
+        this.logger.info({ projectId: id }, 'Updating project');
+
         await this.findOne(id);
 
         const updateProject = await this.prisma.project.update({
@@ -165,10 +186,14 @@ export class ProjectsService {
             data: dto
         })
 
+        this.logger.info({ projectId: id }, 'Project updated');
+
         return this.toResponseDto(updateProject);
     }
 
     async remove(id: number) {
+        this.logger.warn({ projectId: id }, 'Soft deleting project');
+
         await this.findOne(id);
 
         const removedProject = await this.prisma.project.update({
@@ -177,6 +202,8 @@ export class ProjectsService {
                 deletedAt: new Date(),
             },
         });
+
+        this.logger.info({ projectId: id }, 'Project soft deleted');
 
         return this.toResponseDto(removedProject);
     }

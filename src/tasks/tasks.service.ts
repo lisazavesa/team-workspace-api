@@ -9,25 +9,16 @@ import { GetTaskQueryDto } from './dto/task-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { Task } from '@prisma/client';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class TasksService {
     constructor(
         private prisma: PrismaService,
-    ) {}
-
-    // private mapToResponse(task: any): TaskResponseDto {
-    //     return {
-    //         id: task.id,
-    //         title: task.title,
-    //         description: task.description,
-    //         status: task.status,
-    //         projectId: task.projectId,
-    //         assigneeId: task.assigneeId,
-    //         createdAt: task.createdAt,
-    //         updatedAt: task.updatedAt,
-    //     };
-    // }
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(TasksService.name);
+    }
 
     private toResponseDto(task: Task) {
         return plainToInstance(
@@ -41,6 +32,12 @@ export class TasksService {
     }
 
     async create(dto: CreateTaskDto) {
+        this.logger.info(
+            { projectId: dto.projectId, assigneeId: dto.assigneeId }, 
+            'Creating task',
+        );
+
+
         const project = await this.prisma.project.findFirst({
             where: {
                 id: dto.projectId,
@@ -49,6 +46,7 @@ export class TasksService {
         })
 
         if (!project) {
+            this.logger.warn(`Project ${dto.projectId} not found`);
             throw new NotFoundException('Project not found')
         }
 
@@ -83,6 +81,11 @@ export class TasksService {
                 files: true
             }
         })
+
+        this.logger.info(
+            { taskId: task.id },
+            'Task successfully created',
+        );
 
         return this.toResponseDto(task);
     }
@@ -126,6 +129,8 @@ export class TasksService {
     }
 
     async findOne(id: number) {
+        this.logger.debug({ taskId: id }, 'Fetching task');
+
         const task = await this.prisma.task.findFirst({
             where: {
                 id,
@@ -145,6 +150,8 @@ export class TasksService {
     }
 
     async update(id: number, dto: UpdateTaskDto) {
+        this.logger.info({ taskId: id }, 'Updating task');
+
         await this.findOne(id);
 
         const updatedTask = await this.prisma.task.update({
@@ -157,10 +164,14 @@ export class TasksService {
             }
         })
 
+        this.logger.info({ taskId: id }, 'Task updated');
+
         return this.toResponseDto(updatedTask);
     }
 
     async remove(id: number) {
+        this.logger.warn({ taskId: id }, 'Soft deleting task');
+
         await this.findOne(id)
 
         const removedTask = await this.prisma.task.update({
@@ -170,19 +181,33 @@ export class TasksService {
             }
         })
 
+        this.logger.info({ taskId: id }, 'Task soft deleted');
+
         return this.toResponseDto(removedTask);
     }
 
     async uploadFile(taskId: number, file: Express.Multer.File) {
+        this.logger.info(
+            { taskId, fileName: file.originalname },
+            'Uploading file to task',
+        );
+
         await this.findOne(taskId);
 
-        return this.prisma.file.create({
+        const createdFile = await this.prisma.file.create({
             data: {
                 fileName: file.originalname,
                 path: file.filename,
                 taskId: taskId
             }
         })
+
+        this.logger.info(
+            { taskId, fileId: createdFile.id },
+            'File uploaded',
+        );
+
+        return createdFile
     }
 
     async findAllFiles(taskId: number) {
@@ -194,6 +219,11 @@ export class TasksService {
     }
 
     async deleteFile(taskId: number, fileId: number) {
+        this.logger.warn(
+            { taskId, fileId },
+            'Deleting file from task',
+        );
+
         const file = await this.prisma.file.findFirst({
             where: {
                 id: fileId,
@@ -210,12 +240,20 @@ export class TasksService {
         try {
             await fs.unlink(filePath)
         } catch (error) {
-            console.error('Error deleting file from disk:', error)
+            this.logger.error(
+                { taskId, fileId, err: error },
+                'Error deleting file from disk',
+            );
         }
 
         await this.prisma.file.delete({
             where: { id: fileId }
         })
+
+        this.logger.info(
+            { taskId, fileId },
+            'File deleted',
+        );
 
         return { success: true };
     }

@@ -6,10 +6,16 @@ import { GetTeamsQueryDto } from './dto/teams-query.dto';
 import { Prisma, Team } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { TeamResponseDto } from './dto/team-response.dto';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class TeamsService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(TeamsService.name);
+    }
 
     private toResponseDto(team: Team) {
         return plainToInstance(TeamResponseDto, team, {
@@ -18,9 +24,19 @@ export class TeamsService {
         }
 
     async create(dto: CreateTeamDto) {
+        this.logger.info(
+            { name: dto.name },
+            'Creating team',
+        );
+
         const team = await this.prisma.team.create({
             data: dto
         })
+
+        this.logger.info(
+            { name: dto.name },
+            'Team created',
+        );
 
         return this.toResponseDto(team);
     }
@@ -81,17 +97,23 @@ export class TeamsService {
     }
 
     async update(id: number, dto: UpdateTeamDto) {
+        this.logger.info({ teamId: id }, 'Updating team');
+
         await this.findOne(id)
 
         const updatedTeam = await this.prisma.team.update({
             where: { id },
             data: dto,
         });
+
+        this.logger.info({ teamId: id }, 'Team updated');
         
         return this.toResponseDto(updatedTeam);
     }
 
     async remove(id: number) {
+        this.logger.warn({ teamId: id }, 'Soft deleting team');
+
         const team = await this.findOne(id)
 
         const removeTeam = await this.prisma.team.update({
@@ -100,6 +122,8 @@ export class TeamsService {
                 deletedAt: new Date()
             }
         })
+
+        this.logger.info({ teamId: id }, 'Team soft deleted');
 
         return this.toResponseDto(removeTeam);
     }

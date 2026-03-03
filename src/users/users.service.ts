@@ -6,10 +6,16 @@ import { plainToInstance } from 'class-transformer';
 import { UserResponseDto } from './dto/user-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(UsersService.name);
+    }
 
     private toResponseDto(user: User) {
     return plainToInstance(UserResponseDto, user, {
@@ -18,6 +24,11 @@ export class UsersService {
     }
 
     async create(dto: CreateUserDto) {
+        this.logger.info(  
+            { email: dto.email },  
+            'Creating user',
+        );
+
         const passwordHash = await bcrypt.hash(dto.password, 10);
 
         const user = await this.prisma.user.create({
@@ -26,6 +37,11 @@ export class UsersService {
                 passwordHash
             },
         })
+
+        this.logger.info(  
+            { email: dto.email },  
+            'User created',
+        );
 
         return this.toResponseDto(user);
     }
@@ -92,4 +108,17 @@ export class UsersService {
 
         return this.toResponseDto(user);
     }
+
+    /* 
+    update
+    
+    this.logger.info({ userId: id }, 'Updating user');
+    this.logger.info({ userId: id }, 'User updated');
+
+
+    remove
+
+    this.logger.info({ userId: id }, 'Updating user');
+    this.logger.info({ userId: id }, 'User updated');
+    */
 }
