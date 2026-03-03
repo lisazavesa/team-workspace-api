@@ -15,12 +15,23 @@ export class ResponseInterceptor implements NestInterceptor {
         const request = ctx.getRequest();
         
         return next.handle().pipe(
-            map((data) => ({
-            success: true,
-            data,
-            timestamp: new Date().toISOString(),
-            path: request.url,
-            })),
+            map((data) => {
+                let responseData = data;
+                let meta;
+
+                if (data && typeof data === 'object' && 'data' in data && 'meta' in data) {
+                    responseData = data.data;
+                    meta = data.meta;
+                }
+
+                return {
+                    success: true,
+                    data: responseData,
+                    ...(meta && { meta }),
+                    timestamp: new Date().toISOString(),
+                    path: request.url,
+                };
+            }),
         );
     }
 }

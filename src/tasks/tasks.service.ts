@@ -6,10 +6,27 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { promises as fs } from 'fs';
 import * as path from 'path'
 import { GetTaskQueryDto } from './dto/task-query.dto';
+import { TaskResponseDto } from './dto/task-response.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class TasksService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+    ) {}
+
+    private mapToResponse(task: any): TaskResponseDto {
+        return {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            status: task.status,
+            projectId: task.projectId,
+            assigneeId: task.assigneeId,
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt,
+        };
+    }
 
     async create(dto: CreateTaskDto) {
         const project = await this.prisma.project.findFirst({
@@ -18,6 +35,7 @@ export class TasksService {
                 deletedAt: null
             }
         })
+
         if (!project) {
             throw new NotFoundException('Project not found')
         }
@@ -31,9 +49,10 @@ export class TasksService {
             })
 
             if (!user) {
-            throw new NotFoundException('User not found')
+                throw new NotFoundException('User not found')
+            }
         }
-        }
+
         return this.prisma.task.create({
             data: {
                 title: dto.title,
@@ -81,13 +100,20 @@ export class TasksService {
         })
 
         return {
-            data: tasks,
+            data: plainToInstance(
+                TaskResponseDto,
+                tasks.map(task => ({
+                    ...task,
+                    isCompleted: task.status === 'DONE',
+                })),
+                { excludeExtraneousValues: true },
+            ),
             meta: {
                 total,
                 page,
                 lastPage: Math.ceil(total/safeLimit)
             }
-        }
+        };
     }
 
     async findOne(id: number) {
@@ -106,7 +132,12 @@ export class TasksService {
             throw new NotFoundException('Task not found')
         } 
 
-        return task
+        return plainToInstance(TaskResponseDto, {
+            ...task,
+            isCompleted: task.status === 'DONE',
+        }, {
+            excludeExtraneousValues: true,
+        });
     }
 
     async update(id: number, dto: UpdateTaskDto) {
@@ -185,4 +216,6 @@ export class TasksService {
             where: { id: fileId }
         })
     }
+
+    
 }
