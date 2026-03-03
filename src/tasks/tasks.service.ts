@@ -2,12 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-// import { TaskStatus } from '@prisma/client';
+import { Prisma, TaskStatus } from '@prisma/client';
 import { promises as fs } from 'fs';
 import * as path from 'path'
 import { GetTaskQueryDto } from './dto/task-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { Task } from '@prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -15,17 +16,28 @@ export class TasksService {
         private prisma: PrismaService,
     ) {}
 
-    private mapToResponse(task: any): TaskResponseDto {
-        return {
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            status: task.status,
-            projectId: task.projectId,
-            assigneeId: task.assigneeId,
-            createdAt: task.createdAt,
-            updatedAt: task.updatedAt,
-        };
+    // private mapToResponse(task: any): TaskResponseDto {
+    //     return {
+    //         id: task.id,
+    //         title: task.title,
+    //         description: task.description,
+    //         status: task.status,
+    //         projectId: task.projectId,
+    //         assigneeId: task.assigneeId,
+    //         createdAt: task.createdAt,
+    //         updatedAt: task.updatedAt,
+    //     };
+    // }
+
+    private toResponseDto(task: Task) {
+        return plainToInstance(
+            TaskResponseDto, 
+            {
+                ...task,
+                sCompleted: task.status === TaskStatus.DONE,
+            }, 
+            { excludeExtraneousValues: true, }
+        );
     }
 
     async create(dto: CreateTaskDto) {
@@ -53,7 +65,7 @@ export class TasksService {
             }
         }
 
-        return this.prisma.task.create({
+        const task = await this.prisma.task.create({
             data: {
                 title: dto.title,
                 description: dto.description,
@@ -68,8 +80,11 @@ export class TasksService {
             include: {
                 project: true,
                 assignee: true,
+                files: true
             }
         })
+
+        return this.toResponseDto(task);
     }
 
     async findAll(query: GetTaskQueryDto) {
@@ -77,7 +92,7 @@ export class TasksService {
         const limit = query.limit ?? 10
         const safeLimit = Math.min(limit, 50)
 
-        const where: any = {
+        const where: Prisma.TaskWhereInput = {
             ...(query.status && { status: query.status }),
             ...(query.projectId && { projectId: query.projectId }),
             ...(query.assigneeId && { assigneeId: query.assigneeId }),
@@ -100,14 +115,7 @@ export class TasksService {
         })
 
         return {
-            data: plainToInstance(
-                TaskResponseDto,
-                tasks.map(task => ({
-                    ...task,
-                    isCompleted: task.status === 'DONE',
-                })),
-                { excludeExtraneousValues: true },
-            ),
+            data: tasks.map((task) => this.toResponseDto(task)),
             meta: {
                 total,
                 page,
@@ -132,43 +140,40 @@ export class TasksService {
             throw new NotFoundException('Task not found')
         } 
 
-        return plainToInstance(TaskResponseDto, {
-            ...task,
-            isCompleted: task.status === 'DONE',
-        }, {
-            excludeExtraneousValues: true,
-        });
+        return this.toResponseDto(task);
     }
 
     async update(id: number, dto: UpdateTaskDto) {
-        const task = await this.findOne(id)
+        await this.findOne(id);
 
-        return this.prisma.task.update({
+        const updatedTask = await this.prisma.task.update({
             where: { id },
             data: dto,
-            include: { files: true}
+            include: {
+                project: true,
+                assignee: true,
+                files: true,
+            }
         })
+
+        return this.toResponseDto(updatedTask);
     }
 
     async remove(id: number) {
         await this.findOne(id)
 
-        return this.prisma.task.update({
+        const removedTask = await this.prisma.task.update({
             where: { id },
             data: {
                 deletedAt: new Date()
             }
         })
+
+        return this.toResponseDto(removedTask);
     }
 
     async uploadFile(taskId: number, file: Express.Multer.File) {
-        const task = await this.prisma.task.findUnique({
-            where: { id: taskId },
-        })
-
-        if (!task) {
-            throw new NotFoundException('Task not found')
-        } 
+        await this.findOne(taskId);
 
         return this.prisma.file.create({
             data: {
@@ -180,23 +185,18 @@ export class TasksService {
     }
 
     async findAllFiles(taskId: number) {
-        const task = await this.prisma.task.findUnique({
-            where: { id: taskId },
-            include: { files: true }
-        })
+        await this.findOne(taskId);
 
-        if (!task) {
-            throw new NotFoundException('Task not found')
-        }  
-
-        return task.files
+        return this.prisma.file.findMany({
+            where: { taskId },
+        });
     }
 
     async deleteFile(taskId: number, fileId: number) {
         const file = await this.prisma.file.findFirst({
             where: {
                 id: fileId,
-                taskId: taskId
+                taskId,
             }
         })
 
@@ -212,9 +212,11 @@ export class TasksService {
             console.error('Error deleting file from disk:', error)
         }
 
-        return this.prisma.file.delete({
+        await this.prisma.file.delete({
             where: { id: fileId }
         })
+
+        return { success: true };
     }
 
     

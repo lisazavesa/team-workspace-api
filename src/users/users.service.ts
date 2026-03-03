@@ -1,24 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetUsersQueryDto } from './dto/users-query.dto';
-import { contains } from 'class-validator';
-import { Prisma } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { UserResponseDto } from './dto/user-response.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(email: string, passwordHash: string) {
-        return this.prisma.user.create({
-            data: {
-                email,
-                passwordHash
-            },
+    private toResponseDto(user: User) {
+    return plainToInstance(UserResponseDto, user, {
+        excludeExtraneousValues: true,
         });
     }
 
+    async create(dto: CreateUserDto) {
+        const passwordHash = await bcrypt.hash(dto.password, 10);
+
+        const user = await this.prisma.user.create({
+            data: {
+                email: dto.email,
+                passwordHash
+            },
+        })
+
+        return this.toResponseDto(user);
+    }
+
     async findAll(query: GetUsersQueryDto) {
-        // return this.prisma.user.findMany();
         const page = query.page ?? 1
         const limit = query.limit ?? 10
 
@@ -54,12 +66,30 @@ export class UsersService {
         const lastPage = total === 0 ? 1 : Math.ceil(total / safeLimit)
 
         return {
-            data: users,
+            data: plainToInstance(UserResponseDto, users, {
+                excludeExtraneousValues: true,
+            }),
             meta: {
                 total,
                 page,
-                lastPage
-            }
+                lastPage,
+            },
+        };
+    }
+
+    async findOne(id: number) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            include: {
+                teamMembers: true,
+                assignedTasks: true,
+            },
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
         }
+
+        return this.toResponseDto(user);
     }
 }

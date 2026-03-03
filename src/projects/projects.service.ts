@@ -4,38 +4,30 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { count } from 'node:console';
 import { ProjectStatsDto } from './dto/project-stats.dto';
-import { TaskStatus } from '@prisma/client';
+import { Project, TaskStatus } from '@prisma/client';
 import { GetProjectQueryDto } from './dto/project-query.dto';
 import { Prisma } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { ProjectResponseDto } from './dto/project-response.dto';
 
 @Injectable()
 export class ProjectsService {
     constructor(private prisma: PrismaService) {}
 
-    create(dto: CreateProjectDto) {
-        return this.prisma.project.create({
-            data: {
-                name: dto.name,
-                team: {
-                    connect: { id: dto.teamId}
-                }
-            }, 
-            include: {
-                team: true
-            }
+    private toResponseDto(project: Project) {
+        return plainToInstance(ProjectResponseDto, project, {
+            excludeExtraneousValues: true,
+            });
+        }
+
+    async create(dto: CreateProjectDto) {
+        const project = await this.prisma.project.create({
+            data: dto
         })
+        return this.toResponseDto(project);
     }
 
     async findAll(query: GetProjectQueryDto) {
-        // return this.prisma.project.findMany({
-        //     where: {
-        //         deletedAt: null,
-        //     },
-        //     include: {
-        //         team: true,
-        //     },
-        // })
-
         const page = query.page ?? 1
         const limit = query.limit ?? 10
         const safeLimit = Math.min(limit, 50)
@@ -69,7 +61,7 @@ export class ProjectsService {
         const lastPage = total === 0 ? 1 : Math.ceil(total / safeLimit)
         
         return {
-            data: projects,
+            data: projects.map(project => this.toResponseDto(project)),
             meta: {
                 total,
                 page,
@@ -94,22 +86,13 @@ export class ProjectsService {
             throw new NotFoundException('Project not found')
         }
 
-        return project
+        return this.toResponseDto(project);
     }
 
     //аналитический эндпоинт, возвращает числа, а не сущности/списки задач
 
     async getStats(id: number): Promise<ProjectStatsDto> {
-        const project = await this.prisma.project.findFirst({
-            where: {
-                id,
-                deletedAt: null
-            }
-        })
-
-        if (!project) {
-            throw new NotFoundException('Project not found')
-        }
+        await this.findOne(id);
 
         const tasks = await this.prisma.task.groupBy({
             by: ['status'],
@@ -123,7 +106,6 @@ export class ProjectsService {
         })
 
         let totalTasks = 0;
-
         let completedTasks = 0;
         let inProgressTasks = 0;
         let todoTasks = 0;
@@ -159,45 +141,43 @@ export class ProjectsService {
         }
     }
 
-    findByTeam(teamId: number) {
-        return this.prisma.project.findMany({
+    async findByTeam(teamId: number) {
+        const projects = await this.prisma.project.findMany({
             where: {
                 teamId,
                 deletedAt: null
             },
         })
+
+        return {
+            data: projects.map(project => this.toResponseDto(project)),
+            meta: {
+                total: projects.length,
+            }
+        }
     }
 
     async update(id: number, dto: UpdateProjectDto) {
-        const project = await this.prisma.project.findFirst({
-            where: {
-                id,
-                deletedAt: null
-            }
-        })
+        await this.findOne(id);
 
-        if (!project) {
-            throw new NotFoundException('Project not found')
-        }
-
-        return this.prisma.project.update({
+        const updateProject = await this.prisma.project.update({
             where: { id },
             data: dto
         })
+
+        return this.toResponseDto(updateProject);
     }
 
     async remove(id: number) {
-        const project = await this.findOne(id)
+        await this.findOne(id);
 
-        if (!project) {
-                throw new NotFoundException('Project not found')
-            }
-
-        return this.prisma.project.update({
+        const removedProject = await this.prisma.project.update({
             where: { id },
             data: {
-                deletedAt: new Date()
-            }
-        })
+                deletedAt: new Date(),
+            },
+        });
+
+        return this.toResponseDto(removedProject);
     }
 }

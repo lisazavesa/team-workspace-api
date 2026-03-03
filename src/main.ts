@@ -6,7 +6,12 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    {
+      logger: ['log', 'error', 'warn', 'debug'],
+    }
+  )
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
