@@ -56,17 +56,19 @@ export class TasksService {
     async findAll(query: GetTaskQueryDto) {
         const page = query.page ?? 1
         const limit = query.limit ?? 10
-
         const safeLimit = Math.min(limit, 50)
 
-        const where = {
+        const where: any = {
             ...(query.status && { status: query.status }),
             ...(query.projectId && { projectId: query.projectId }),
             ...(query.assigneeId && { assigneeId: query.assigneeId }),
         }
 
-        const total = await this.prisma.task.count({ where })
+        console.log(query);
+        console.log(typeof query.projectId);
+        console.log(typeof query.status);
 
+        const total = await this.prisma.task.count({ where })
         const skip = (page - 1) * safeLimit
 
         const tasks = await this.prisma.task.findMany({
