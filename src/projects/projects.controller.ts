@@ -7,10 +7,11 @@ import {
     Param,
     Delete,
     ParseIntPipe,
+    Query,
 } from '@nestjs/common'
 import { ProjectsService } from './projects.service'
 import { CreateProjectDto } from './dto/create-project.dto'
-import { UpdateProjectDto } from './dto/update-project.dto'
+import { GetProjectQueryDto } from './dto/project-query.dto'
 
 @Controller('projects')
 export class ProjectsController {
@@ -22,13 +23,19 @@ export class ProjectsController {
     }
 
     @Get()
-    finAll() {
-        return this.projectServise.findAll()
+    findAll(@Query() query: GetProjectQueryDto) {
+        return this.projectServise.findAll(query);
     }
 
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.projectServise.findOne(id)
+    }
+
+    //аналитический эндпоинт, возвращает числа, а не сущности/списки задач
+    @Get(':id/stats')
+    getStats(@Param('id', ParseIntPipe) id: number) {
+        return this.projectServise.getStats(id)
     }
 
     @Get('/team/:teamId')

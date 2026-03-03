@@ -1,39 +1,32 @@
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
-import { TaskStatus } from '@prisma/client'
 import { Transform, Type } from 'class-transformer';
 
-export class GetTaskQueryDto {
-    @IsOptional()
+export class GetProjectQueryDto {
     @IsInt()
+    @IsOptional()
     @Type(() => Number)
     @Min(1)
     page?: number;
-    
+
     @IsOptional()
     @IsInt()
     @Type(() => Number)
-    @Min(1)
     @Max(50)
+    @Min(1)
     limit?: number;
-    
+
     @IsOptional()
     @IsString()
     @IsEnum(['asc', 'desc'])
     order?: 'asc' | 'desc';
-    
+
     @IsOptional()
-    @IsEnum(TaskStatus)
-    status?: TaskStatus;
-    
+    @IsString()
+    name?: string
+
     @IsOptional()
     @IsInt()
     @Type(() => Number)
     @Transform(({ value }) => parseInt(value)) 
-    projectId?: number;
-    
-    @IsOptional()
-    @IsInt()
-    @Type(() => Number)
-    assigneeId?: number
-
+    teamId?: number
 }

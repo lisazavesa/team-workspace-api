@@ -2,6 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { count } from 'node:console';
+import { ProjectStatsDto } from './dto/project-stats.dto';
+import { TaskStatus } from '@prisma/client';
+import { GetProjectQueryDto } from './dto/project-query.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ProjectsService {
@@ -21,15 +26,56 @@ export class ProjectsService {
         })
     }
 
-    findAll() {
-        return this.prisma.project.findMany({
-            where: {
-                deletedAt: null,
+    async findAll(query: GetProjectQueryDto) {
+        // return this.prisma.project.findMany({
+        //     where: {
+        //         deletedAt: null,
+        //     },
+        //     include: {
+        //         team: true,
+        //     },
+        // })
+
+        const page = query.page ?? 1
+        const limit = query.limit ?? 10
+        const safeLimit = Math.min(limit, 50)
+                
+        const where: Prisma.ProjectWhereInput = {
+            deletedAt: null,
+            ...(query.name && {
+                name: {
+                    contains: query.name,
+                    mode: Prisma.QueryMode.insensitive
+                }
+            }),
+            ...(query.teamId && { teamId: query.teamId })
+        }
+                
+        const total = await this.prisma.project.count({ where })
+        const skip = (page - 1) * safeLimit
+
+        const projects = await this.prisma.project.findMany({
+            where,
+            skip,
+            take: safeLimit,
+            orderBy: {
+                createdAt: query.order ?? 'desc'
             },
             include: {
                 team: true,
-            },
+            }
         })
+
+        const lastPage = total === 0 ? 1 : Math.ceil(total / safeLimit)
+        
+        return {
+            data: projects,
+            meta: {
+                total,
+                page,
+                lastPage
+            }
+        }
     }
 
     async findOne(id: number) {
@@ -49,6 +95,68 @@ export class ProjectsService {
         }
 
         return project
+    }
+
+    //аналитический эндпоинт, возвращает числа, а не сущности/списки задач
+
+    async getStats(id: number): Promise<ProjectStatsDto> {
+        const project = await this.prisma.project.findFirst({
+            where: {
+                id,
+                deletedAt: null
+            }
+        })
+
+        if (!project) {
+            throw new NotFoundException('Project not found')
+        }
+
+        const tasks = await this.prisma.task.groupBy({
+            by: ['status'],
+            where: {
+                projectId: id,
+                deletedAt: null
+            },
+            _count: {
+                _all: true
+            }
+        })
+
+        let totalTasks = 0;
+
+        let completedTasks = 0;
+        let inProgressTasks = 0;
+        let todoTasks = 0;
+        let progress = 0;
+
+        tasks.forEach( task => {
+            totalTasks += task._count._all
+
+            if (task.status === TaskStatus.DONE) {
+                completedTasks = task._count._all
+            }
+            if (task.status === TaskStatus.IN_PROGRESS) {
+                inProgressTasks = task._count._all
+            }
+            if (task.status === TaskStatus.TODO) {
+                todoTasks = task._count._all
+            }
+        })
+
+        if (totalTasks === 0) {
+            progress = 0
+        } else {
+            progress = Math.round((completedTasks / totalTasks) * 100)
+        }
+
+        return {
+            id,
+            totalTasks,
+            completedTasks,
+            inProgressTasks,
+            todoTasks,
+            progress
+        }
     }
 
     findByTeam(teamId: number) {
