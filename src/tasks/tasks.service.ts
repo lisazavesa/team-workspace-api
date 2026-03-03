@@ -64,10 +64,6 @@ export class TasksService {
             ...(query.assigneeId && { assigneeId: query.assigneeId }),
         }
 
-        console.log(query);
-        console.log(typeof query.projectId);
-        console.log(typeof query.status);
-
         const total = await this.prisma.task.count({ where })
         const skip = (page - 1) * safeLimit
 
