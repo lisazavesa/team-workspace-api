@@ -25,4 +25,7 @@ export class TaskResponseDto {
 
     @Expose()
     updatedAt: Date;
+
+    @Expose()
+    deleteAd: Date;
 }

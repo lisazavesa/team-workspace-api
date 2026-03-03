@@ -9,17 +9,22 @@ import { GetTaskQueryDto } from './dto/task-query.dto';
 
 @Controller('tasks')
 export class TasksController {
-    constructor(private readonly tasksServise: TasksService) {}
+    constructor(private readonly tasksService: TasksService) {}
 
     @Post()
     create(@Body() dto: CreateTaskDto) {
-        return this.tasksServise.create(dto)
+        return this.tasksService.create(dto)
     }
 
 
     @Get()
     findAll(@Query() query: GetTaskQueryDto)  {
-        return this.tasksServise.findAll(query)
+        return this.tasksService.findAll(query)
+    }
+
+    @Get(':id')
+    findOne(@Param('id', ParseIntPipe) id: number) {
+        return this.tasksService.findOne(id);
     }
 
 
@@ -27,13 +32,13 @@ export class TasksController {
     update(
         @Param('id', ParseIntPipe) id: number, 
         @Body() dto: UpdateTaskDto) {
-            return this.tasksServise.update(id, dto)
+            return this.tasksService.update(id, dto)
     }
 
 
     @Delete(':id')
     remove(@Param('id', ParseIntPipe) id: number) {
-        return this.tasksServise.remove(id)
+        return this.tasksService.remove(id)
     }
 
     //file
@@ -54,12 +59,12 @@ export class TasksController {
         @Param('id', ParseIntPipe) id: number, 
         @UploadedFile() file: Express.Multer.File
     ) {
-        return this.tasksServise.uploadFile(id, file)
+        return this.tasksService.uploadFile(id, file)
     }
 
     @Get(':taskId/files')
     findAllFiles(@Param('taskId', ParseIntPipe) taskId: number) {
-        return this.tasksServise.findAllFiles(taskId)
+        return this.tasksService.findAllFiles(taskId)
     }
 
     @Delete(':taskId/files/:fileId')
@@ -67,6 +72,6 @@ export class TasksController {
         @Param('fileId', ParseIntPipe) fileId: number,
         @Param('taskId', ParseIntPipe) taskId: number
     ) {
-        return this.tasksServise.deleteFile(taskId, fileId)
+        return this.tasksService.deleteFile(taskId, fileId)
     }
 }

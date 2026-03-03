@@ -93,6 +93,7 @@ export class TasksService {
         const safeLimit = Math.min(limit, 50)
 
         const where: Prisma.TaskWhereInput = {
+            deletedAt: null,
             ...(query.status && { status: query.status }),
             ...(query.projectId && { projectId: query.projectId }),
             ...(query.assigneeId && { assigneeId: query.assigneeId }),
