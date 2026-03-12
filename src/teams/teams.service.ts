@@ -66,10 +66,6 @@ export class TeamsService {
             orderBy: {
                 createdAt: query.order ?? 'desc'
             },
-            // include: {
-            //     members: true,
-            //     projects: true,
-            // }
         })
 
         const lastPage = total === 0 ? 1 : Math.ceil(total / safeLimit)
