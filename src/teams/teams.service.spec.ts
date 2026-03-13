@@ -129,7 +129,63 @@ describe('TeamsService', () => {
     await expect(service.findOne(999))
       .rejects
       .toThrow(NotFoundException);
-
   })
+
+  it('should throw if team not found', async () => {
+    prisma.team.findUnique.mockResolvedValue(null);
+
+    await expect(service.findOne(999))
+      .rejects
+      .toThrow(NotFoundException);
+  })
+
+  it('should update team', async () => {
+    const dto = { name: 'New name'};
+
+    const fakeTeam = {
+      id: 1,
+      name: 'New name',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    prisma.team.findUnique.mockResolvedValue(fakeTeam);
+    prisma.team.update.mockResolvedValue(fakeTeam);
+
+    const result = await service.update(1, dto);
+
+    expect(prisma.team.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: dto
+    });
+
+    expect(result.name).toBe('New name');
+  });
+
+  it('should remove team', async () => {
+
+    const fakeTeam = {
+      id: 1,
+      name: 'Backend',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: new Date(),
+    };
+
+    prisma.team.findUnique.mockResolvedValue(fakeTeam);
+    prisma.team.update.mockResolvedValue(fakeTeam);
+
+    const result = await service.remove(1);
+
+    expect(prisma.team.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {
+        deletedAt: expect.any(Date)
+      }
+    });
+
+    expect(result.deletedAt).toBeDefined;
+  });
 
 });
